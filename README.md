@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## Phoneapp
 [This widget is for phone number input ]
 
@@ -22,3 +23,7 @@
     - the bundle will be included in the `deployment` and `widgets` folder of the Mendix test project.
 
 [specify contribution]
+=======
+# Phone-Number-with-country-code-Mendix-Widget
+The International Phone Input widget provides phone number entry with country code selection, flag display, and format validation. Perfect for global user forms requiring properly formatted international phone numbers.
+>>>>>>> d778b4393e11eb62a3c5ce378b7c185eaf60bffc
