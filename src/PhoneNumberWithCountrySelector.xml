@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<widget id="cgi.PhoneNumberWithCountrySelector.PhoneNumberWithCountrySelector" pluginWidget="true" needsEntityContext="true" offlineCapable="true"
+        supportedPlatform="Web"
+        xmlns="http://www.mendix.com/widget/1.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.mendix.com/widget/1.0/ ../node_modules/mendix/custom_widget.xsd">
+    <name>Phone Number With Country Selector</name>
+    <description>This widget is for phone number input </description>
+    <icon/>
+    <properties>
+        <propertyGroup caption="General">
+            <property key="combinedPhoneAttribute" type="attribute" required="true">
+                <caption>Combined Phone Number</caption>
+                <description>The attribute that stores the combined country code and phone number value (e.g., +11234567890)</description>
+                <attributeTypes>
+                    <attributeType name="String"/>
+                </attributeTypes>
+            </property>
+            <property key="countryCodeAttribute" type="attribute" required="false">
+                <caption>Country Code</caption>
+                <description>The attribute that stores the country code value (e.g., +1)</description>
+                <attributeTypes>
+                    <attributeType name="String"/>
+                </attributeTypes>
+            </property>
+             <property key="phoneNumberAttribute" type="attribute" required="false">
+                <caption>Phone Number</caption>
+                <description>The attribute that stores the phone number value (e.g., (123)-456-7894)</description>
+                <attributeTypes>
+                    <attributeType name="String"/>
+                </attributeTypes>
+            </property>
+        </propertyGroup>
+    </properties>
+</widget>

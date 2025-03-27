@@ -1,0 +1,42 @@
+{
+  "name": "phone-number-and-country-selector",
+  "widgetName": "PhoneNumberWithCountrySelector",
+  "version": "1.0.0",
+  "description": "The International Phone Input widget for Mendix provides an enhanced phone number input experience with integrated country code selection. It allows users to easily select country codes from a dropdown menu and validates phone number formats according to international standards. This widget is ideal for applications requiring global user registration, customer data collection, or any form that needs to capture correctly formatted international phone numbers. Features include country flag display, proper input formatting, and compatibility with Mendix's data validation system.",
+  "copyright": "© Mendix Technology BV 2022. All rights reserved.",
+  "author": "Avinash",
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "Apache-2.0",
+  "config": {
+    "projectPath": "../../",
+    "mendixHost": "http://localhost:8080",
+    "developmentPort": 3000
+  },
+  "packagePath": "cgi",
+  "scripts": {
+    "start": "pluggable-widgets-tools start:server",
+    "dev": "pluggable-widgets-tools start:web",
+    "build": "pluggable-widgets-tools build:web",
+    "lint": "pluggable-widgets-tools lint",
+    "lint:fix": "pluggable-widgets-tools lint:fix",
+    "prerelease": "npm run lint",
+    "release": "pluggable-widgets-tools release:web"
+  },
+  "devDependencies": {
+    "@mendix/pluggable-widgets-tools": "^10.15.0",
+    "file-loader": "^6.2.0"
+  },
+  "dependencies": {
+    "classnames": "^2.2.6"
+  },
+  "resolutions": {
+    "react": "^18.2.0",
+    "react-native": "0.72.7"
+  },
+  "overrides": {
+    "react": "^18.2.0",
+    "react-native": "0.72.7"
+  }
+}
