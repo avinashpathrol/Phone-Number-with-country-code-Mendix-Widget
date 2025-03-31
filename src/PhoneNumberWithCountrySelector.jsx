@@ -58,7 +58,7 @@ export default class PhoneApp extends Component {
                 initialPhoneNumber = this.formatPhoneNumber(digits);
                 
                 // Find the country by code
-                const matchedCountry = COUNTRIES.find(country => country.code === initialCountryCode);
+                const matchedCountry = this.findCountryByCode(initialCountryCode);
                 if (matchedCountry) {
                     defaultCountry = matchedCountry;
                 }
@@ -68,6 +68,17 @@ export default class PhoneApp extends Component {
                 initialPhoneNumber = this.formatPhoneNumber(digits);
             }
         }
+        
+        // Determine if custom format is enabled - convert string to boolean
+        const useCustomFormat = String(props.useCustomFormat).toLowerCase() === "true";
+        const customFormatPattern = props.customFormatPattern || "XXX-XXX-XXXX";
+        
+        console.log("Constructor settings:", {
+            useCustomFormat: useCustomFormat,
+            customFormatPattern: customFormatPattern,
+            propUseCustomFormat: props.useCustomFormat,
+            propType: typeof props.useCustomFormat
+        });
         
         this.state = {
             countryCode: initialCountryCode,
@@ -79,7 +90,10 @@ export default class PhoneApp extends Component {
             dropdownOpen: false,
             selectedCountry: defaultCountry,
             searchQuery: "",
-            filteredCountries: COUNTRIES
+            filteredCountries: COUNTRIES,
+            useCustomFormat: useCustomFormat,
+            customFormatPattern: customFormatPattern,
+            showFormatToggle: false  // For UI toggle
         };
         
         this.handlePhoneNumberChange = this.handlePhoneNumberChange.bind(this);
@@ -90,9 +104,29 @@ export default class PhoneApp extends Component {
         this.handleSearchChange = this.handleSearchChange.bind(this);
         this.handlePhoneNumberFocus = this.handlePhoneNumberFocus.bind(this);
         this.handlePhoneNumberBlur = this.handlePhoneNumberBlur.bind(this);
+        this.toggleCustomFormat = this.toggleCustomFormat.bind(this);
+        this.handleCustomFormatChange = this.handleCustomFormatChange.bind(this);
         
         // Initialize dropdownRef as null
         this.dropdownRef = null;
+    }
+    
+    // Find country by code with special handling for US/Canada
+    findCountryByCode(code) {
+        // If it's +1, prioritize the country based on defaultCountry
+        if (code === "+1" && this.props.defaultCountry) {
+            if (this.props.defaultCountry === "US") {
+                return COUNTRIES.find(country => 
+                    country.code === "+1" && country.name === "United States");
+            }
+            else if (this.props.defaultCountry === "CA") {
+                return COUNTRIES.find(country => 
+                    country.code === "+1" && country.name === "Canada");
+            }
+        }
+        
+        // Standard lookup by code
+        return COUNTRIES.find(country => country.code === code);
     }
     
     // Build a complete mapping of country codes from 2-letter codes to dialing codes
@@ -129,6 +163,38 @@ export default class PhoneApp extends Component {
         }
         
         document.addEventListener("mousedown", this.handleClickOutside);
+        
+        // Log props at mount time to debug
+        console.log("Component mounted with props:", {
+            useCustomFormat: this.props.useCustomFormat,
+            customFormatPattern: this.props.customFormatPattern,
+            typeOfUseCustom: typeof this.props.useCustomFormat
+        });
+        
+        // Initialize from props
+        if (this.props.useCustomFormat !== undefined) {
+            // Convert string to boolean properly
+            const useCustom = String(this.props.useCustomFormat).toLowerCase() === "true";
+            
+            this.setState({ 
+                useCustomFormat: useCustom,
+                customFormatPattern: this.props.customFormatPattern || "XXX-XXX-XXXX"
+            });
+            
+            console.log("Setting format from props:", {
+                useCustom: useCustom,
+                pattern: this.props.customFormatPattern || "XXX-XXX-XXXX"
+            });
+            
+            // Reformat the phone number if custom format is enabled
+            if (useCustom) {
+                const digits = this.state.phoneNumber.replace(/\D/g, '');
+                if (digits) {
+                    const formattedNumber = this.formatPhoneNumber(digits);
+                    this.setState({ phoneNumber: formattedNumber });
+                }
+            }
+        }
     }
     
     componentDidUpdate(prevProps) {
@@ -140,6 +206,40 @@ export default class PhoneApp extends Component {
                 this.detectUserCountry();
             } else {
                 this.updateDefaultCountry();
+            }
+        }
+        
+        // Check if the format option has changed
+        const prevUseCustom = String(prevProps.useCustomFormat).toLowerCase() === "true";
+        const currentUseCustom = String(this.props.useCustomFormat).toLowerCase() === "true";
+        
+        if (prevProps.phoneFormat !== this.props.phoneFormat ||
+            prevUseCustom !== currentUseCustom ||
+            prevProps.customFormatPattern !== this.props.customFormatPattern) {
+            
+            console.log("Phone format changed:", {
+                prevFormat: prevProps.phoneFormat,
+                newFormat: this.props.phoneFormat,
+                prevUseCustom: prevUseCustom,
+                newUseCustom: currentUseCustom,
+                prevPattern: prevProps.customFormatPattern,
+                newPattern: this.props.customFormatPattern
+            });
+            
+            // Update state for custom format settings
+            if (prevUseCustom !== currentUseCustom) {
+                this.setState({ useCustomFormat: currentUseCustom });
+            }
+            
+            if (prevProps.customFormatPattern !== this.props.customFormatPattern && this.props.customFormatPattern) {
+                this.setState({ customFormatPattern: this.props.customFormatPattern });
+            }
+            
+            // Extract digits and reformat using the new format
+            const digits = this.state.phoneNumber.replace(/\D/g, '');
+            if (digits) {
+                const formattedNumber = this.formatPhoneNumber(digits);
+                this.setState({ phoneNumber: formattedNumber });
             }
         }
     }
@@ -242,6 +342,38 @@ export default class PhoneApp extends Component {
         });
     }
     
+    // Toggle custom format option
+    toggleCustomFormat() {
+        this.setState(prevState => {
+            const newState = { useCustomFormat: !prevState.useCustomFormat };
+            
+            // If we just enabled custom format, also update the phone number format
+            if (!prevState.useCustomFormat) {
+                const digits = this.state.phoneNumber.replace(/\D/g, '');
+                if (digits) {
+                    const formattedNumber = this.formatPhoneNumber(digits, newState);
+                    newState.phoneNumber = formattedNumber;
+                }
+            }
+            
+            return newState;
+        });
+    }
+    
+    // Handle changes to the custom format pattern
+    handleCustomFormatChange(event) {
+        const newPattern = event.target.value;
+        
+        this.setState({ customFormatPattern: newPattern }, () => {
+            // Reformat the phone number using the new pattern
+            const digits = this.state.phoneNumber.replace(/\D/g, '');
+            if (digits) {
+                const formattedNumber = this.formatPhoneNumber(digits);
+                this.setState({ phoneNumber: formattedNumber });
+            }
+        });
+    }
+    
     selectCountry(country) {
         if (!country) return;
         
@@ -267,23 +399,166 @@ export default class PhoneApp extends Component {
         return country.flagPath;
     }
     
-    // Format phone number as (XXX)-XXX-XXXX
-    formatPhoneNumber(digits) {
+// Apply custom format to phone numbers EXACTLY as specified in the pattern
+applyCustomFormat(digits, pattern) {
+    if (!pattern || !digits) return digits;
+    
+    console.log("Applying custom format:", { digits, pattern });
+    
+    // For patterns with X placeholders (standard case)
+    if (pattern.includes('X')) {
+        // Handle X-based patterns (original logic)
+        const xCount = (pattern.match(/X/g) || []).length;
+        
+        if (xCount < digits.length) {
+            console.log("Pattern doesn't have enough X placeholders");
+            return digits;
+        }
+        
+        let result = pattern;
+        let digitIndex = 0;
+        
+        for (let i = 0; i < pattern.length && digitIndex < digits.length; i++) {
+            if (pattern[i] === 'X') {
+                result = result.substring(0, i) + digits[digitIndex++] + result.substring(i + 1);
+            }
+        }
+        
+        // Remove any remaining X characters
+        result = result.replace(/X/g, '');
+        return result;
+    } else {
+        // For patterns without X, treat each numeric character as a position marker
+        // and preserve all non-numeric characters exactly as they are
+        
+        // Count actual digits in the pattern
+        const patternDigits = pattern.replace(/[^0-9]/g, '');
+        const digitCount = patternDigits.length;
+        
+        console.log("Pattern has", digitCount, "digit positions");
+        
+        // If we don't have enough pattern digits, return the original digits
+        if (digitCount === 0) return digits;
+        
+        // Create a new pattern by replacing the digits in the pattern with X
+        let newPattern = pattern;
+        let patternDigitIndex = 0;
+        
+        for (let i = 0; i < newPattern.length; i++) {
+            if (/[0-9]/.test(newPattern[i])) {
+                newPattern = newPattern.substring(0, i) + 'X' + newPattern.substring(i + 1);
+                patternDigitIndex++;
+            }
+        }
+        
+        console.log("Converted pattern with X:", newPattern);
+        
+        // Now apply the X pattern logic
+        let result = newPattern;
+        let digitIndex = 0;
+        
+        for (let i = 0; i < result.length && digitIndex < digits.length; i++) {
+            if (result[i] === 'X') {
+                result = result.substring(0, i) + digits[digitIndex++] + result.substring(i + 1);
+            }
+        }
+        
+        // Remove any remaining X characters
+        result = result.replace(/X/g, '');
+        
+        // If we still have digits left, append them at the end
+        if (digitIndex < digits.length) {
+            result += digits.substring(digitIndex);
+        }
+        
+        console.log("Final formatted result:", result);
+        return result;
+    }
+}
+    
+    // Format phone number based on selected format or custom pattern
+    formatPhoneNumber(digits, stateOverride = null) {
         if (!digits) return "";
         
-        // Format according to length
-        if (digits.length <= 3) {
-            return digits.length > 0 ? `(${digits}` : "";
-        } else if (digits.length <= 6) {
-            return `(${digits.slice(0, 3)})-${digits.slice(3)}`;
-        } else {
-            return `(${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+        // Use either the override state or the component state
+        const state = stateOverride || this.state;
+        const props = this.props;
+        
+        // DEBUGGING - Log properties
+        console.log("Format properties:", {
+            propsUseCustomFormat: props.useCustomFormat,
+            propsCustomFormatPattern: props.customFormatPattern,
+            stateUseCustom: state.useCustomFormat,
+            statePattern: state.customFormatPattern
+        });
+        
+        // Convert string to boolean properly for both props and state
+        const propsUseCustom = String(props.useCustomFormat).toLowerCase() === "true";
+        const stateUseCustom = state.useCustomFormat === true;
+        
+        // CHANGED: Check if custom format is enabled in either props or state
+        const useCustom = propsUseCustom || stateUseCustom;
+        
+        console.log("Use custom format?", useCustom);
+        
+        // Use custom format if enabled
+        if (useCustom) {
+            const pattern = props.customFormatPattern || state.customFormatPattern || "XXX-XXX-XXXX";
+            console.log("Using custom pattern:", pattern);
+            return this.applyCustomFormat(digits, pattern);
+        }
+        
+        // Otherwise use predefined formats
+        const format = props.phoneFormat || "US_FORMAT";
+        
+        // Handle different formatting options
+        switch (format) {
+            case "SPACE_FORMAT":
+                // Format as "XXX XXX XXXX"
+                if (digits.length <= 3) {
+                    return digits;
+                } else if (digits.length <= 6) {
+                    return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+                } else {
+                    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+                }
+            
+            case "SLASH_FORMAT":
+                // Format as "XXX/XXX XXXX"
+                if (digits.length <= 3) {
+                    return digits;
+                } else if (digits.length <= 6) {
+                    return `${digits.slice(0, 3)}/${digits.slice(3)}`;
+                } else {
+                    return `${digits.slice(0, 3)}/${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+                }
+            
+            case "CUSTOM_FORMAT":
+                // This case is for when phoneFormat is set to CUSTOM_FORMAT in the XML,
+                // but the useCustomFormat toggle is not enabled
+                const customPattern = props.customFormatPattern || "XXX-XXX-XXXX";
+                return this.applyCustomFormat(digits, customPattern);
+                
+            case "US_FORMAT":
+            default:
+                // Default US format "(XXX)-XXX-XXXX"
+                if (digits.length <= 3) {
+                    return digits.length > 0 ? `(${digits}` : "";
+                } else if (digits.length <= 6) {
+                    return `(${digits.slice(0, 3)})-${digits.slice(3)}`;
+                } else {
+                    return `(${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+                }
         }
     }
     
     render() {
-        const { selectedCountry, dropdownOpen, hasError, errorMessage, phoneNumber, 
-                searchQuery, isTouched, isBlurred, filteredCountries } = this.state;
+        const { 
+            selectedCountry, dropdownOpen, hasError, errorMessage, 
+            phoneNumber, searchQuery, isTouched, isBlurred, 
+            filteredCountries, useCustomFormat, customFormatPattern,
+            showFormatToggle
+        } = this.state;
         
         // Extract digits for validation
         const phoneDigits = phoneNumber.replace(/\D/g, '');
@@ -295,6 +570,7 @@ export default class PhoneApp extends Component {
         
         return (
             <div className="phone-input-container">
+                {/* Country Selector */}
                 <div 
                     className="country-selector" 
                     ref={node => { this.dropdownRef = node; }}
@@ -304,7 +580,6 @@ export default class PhoneApp extends Component {
                         onClick={this.toggleDropdown}
                         tabIndex="0"
                     >
-                        {/* Display the selected country's flag */}
                         <img 
                             src={selectedCountry.flagPath} 
                             alt={selectedCountry.name}
@@ -351,6 +626,7 @@ export default class PhoneApp extends Component {
                     )}
                 </div>
                 
+                {/* Phone Number Input */}
                 <div className="phone-number-input">
                     <input
                         type="tel"
@@ -366,6 +642,35 @@ export default class PhoneApp extends Component {
                     />
                 </div>
                 
+                {/* Format Toggle Section */}
+                {showFormatToggle && (
+                    <div className="format-toggle-section">
+                        <div className="toggle-container">
+                            <label className="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    checked={useCustomFormat}
+                                    onChange={this.toggleCustomFormat}
+                                />
+                                <span className="toggle-text">Use Custom Format</span>
+                            </label>
+                        </div>
+                        
+                        {useCustomFormat && (
+                            <div className="custom-format-input">
+                                <input
+                                    type="text"
+                                    value={customFormatPattern}
+                                    onChange={this.handleCustomFormatChange}
+                                    placeholder="Format pattern (use X for digits)"
+                                />
+                                <span className="format-hint">Example: XXX-XXX-XXXX or (XXX) XXX XXXX</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+                
+                {/* Error Message */}
                 {showValidationError && (
                     <div id="phone-error-message" className="error-message" role="alert">
                         {phoneDigits.length < 10 ? 
@@ -379,8 +684,35 @@ export default class PhoneApp extends Component {
     
     handlePhoneNumberChange(event) {
         const value = event.target.value;
-        // Only allow numbers, parentheses, dashes for entry
-        const cleanedValue = value.replace(/[^\d()-]/g, '');
+        
+        // Convert useCustomFormat properly from props
+        const useCustom = String(this.props.useCustomFormat).toLowerCase() === "true" || this.state.useCustomFormat === true;
+        
+        // Determine which characters to allow based on format
+        let cleanedValue;
+        
+        if (useCustom) {
+            // For custom format, allow any characters that might be in the pattern
+            // but still filter out most non-digit characters for safety
+            cleanedValue = value.replace(/[^0-9\s\-()\/\.]/g, '');
+        } else {
+            // For predefined formats, use specific rules
+            const format = this.props.phoneFormat || "US_FORMAT";
+            
+            switch (format) {
+                case "SPACE_FORMAT":
+                    cleanedValue = value.replace(/[^\d\s]/g, ''); // Allow digits and spaces
+                    break;
+                case "SLASH_FORMAT":
+                    cleanedValue = value.replace(/[^\d\/\s]/g, ''); // Allow digits, slashes, and spaces
+                    break;
+                case "CUSTOM_FORMAT":
+                case "US_FORMAT":
+                default:
+                    cleanedValue = value.replace(/[^\d()-]/g, ''); // Allow digits, parentheses, dashes
+                    break;
+            }
+        }
         
         // Extract just the digits for processing
         const digitsOnly = cleanedValue.replace(/\D/g, '');
