@@ -1,4 +1,3 @@
-
 import { Component, createElement } from "react";
 import "./ui/PhoneNumberWithCountrySelector.css";
 import { COUNTRIES, getCountryByRegionCode } from "./countryData";
@@ -7,37 +6,39 @@ export default class PhoneApp extends Component {
     constructor(props) {
         super(props);
         
-        // Map the defaultCountry property from Mendix to a country code
-        const countryCodeMap = {
-            US: "+1",     // United States
-            CA: "+1",     // Canada
-            UK: "+44",    // United Kingdom
-            AU: "+61",    // Australia
-            FR: "+33",    // France
-            DE: "+49",    // Germany
-            IN: "+91",    // India
-            JP: "+81",    // Japan
-            BR: "+55",    // Brazil
-            MX: "+52",    // Mexico
-            CN: "+86",    // China
-            RU: "+7",     // Russia
-            ZA: "+27",    // South Africa
-            AR: "+54",    // Argentina
-            IT: "+39"     // Italy
-            // Add more as needed
-        };
+        // Complete mapping for all country codes from the XML enum values
+        const countryCodeMap = this.buildCountryCodeMap();
         
         // Get default country code from props or use +1 (US) as fallback
         let defaultCode = "+1"; // Default fallback
         
+        // Default to United States
+        let defaultCountry = COUNTRIES.find(country => 
+            country.code === "+1" && country.name === "United States") || 
+            COUNTRIES.find(country => country.code === "+1");
+        
         // If defaultCountry is set, use its value to get the country code
         if (props.defaultCountry && props.defaultCountry !== "AUTO") {
-            defaultCode = countryCodeMap[props.defaultCountry] || "+1";
-            console.log("Default country set to:", props.defaultCountry, "with code:", defaultCode);
+            // Special handling for countries with shared dialing codes
+            if (props.defaultCountry === "US") {
+                defaultCountry = COUNTRIES.find(country => 
+                    country.code === "+1" && country.name === "United States");
+            }
+            else if (props.defaultCountry === "CA") {
+                defaultCountry = COUNTRIES.find(country => 
+                    country.code === "+1" && country.name === "Canada");
+            }
+            // For other countries, just use the standard lookup by code
+            else {
+                const code = countryCodeMap[props.defaultCountry] || "+1";
+                defaultCountry = COUNTRIES.find(country => country.code === code) || defaultCountry;
+            }
+            
+            defaultCode = defaultCountry.code;
+            console.log("Default country set to:", props.defaultCountry, 
+                "with code:", defaultCode, 
+                "and name:", defaultCountry.name);
         }
-        
-        // Find the default country object based on the code
-        let defaultCountry = COUNTRIES.find(country => country.code === defaultCode) || COUNTRIES.find(country => country.code === "+1");
         
         // Parse initial combined phone number if available
         let initialCountryCode = defaultCode;
@@ -94,6 +95,33 @@ export default class PhoneApp extends Component {
         this.dropdownRef = null;
     }
     
+    // Build a complete mapping of country codes from 2-letter codes to dialing codes
+    buildCountryCodeMap() {
+        // This function builds a complete mapping for all countries in your list
+        const map = {};
+        
+        // Extract country codes from your COUNTRIES array
+        COUNTRIES.forEach(country => {
+            // Find the 2-letter country code from the flagPath
+            // Example: https://flagcdn.com/us.svg -> US
+            const flagPath = country.flagPath;
+            if (flagPath) {
+                const matches = flagPath.match(/\/([a-z]{2})\.svg$/);
+                if (matches && matches[1]) {
+                    const twoLetterCode = matches[1].toUpperCase();
+                    map[twoLetterCode] = country.code;
+                }
+            }
+        });
+        
+        // Manual additions for special cases
+        map['UK'] = '+44'; // United Kingdom
+        map['GB'] = '+44'; // Great Britain
+        
+        console.log("Built country code map with", Object.keys(map).length, "entries");
+        return map;
+    }
+    
     componentDidMount() {
         // Only try to auto-detect if specifically configured to do so
         if (this.props.defaultCountry === "AUTO") {
@@ -105,42 +133,44 @@ export default class PhoneApp extends Component {
     
     componentDidUpdate(prevProps) {
         // Check if defaultCountry prop has changed
-        if (prevProps.defaultCountry !== this.props.defaultCountry && this.props.defaultCountry !== "AUTO") {
-            // Handle changed default country
-            this.updateDefaultCountry();
+        if (prevProps.defaultCountry !== this.props.defaultCountry) {
+            console.log("Default country changed from", prevProps.defaultCountry, "to", this.props.defaultCountry);
+            
+            if (this.props.defaultCountry === "AUTO") {
+                this.detectUserCountry();
+            } else {
+                this.updateDefaultCountry();
+            }
         }
     }
     
     updateDefaultCountry() {
-        // Map the defaultCountry property to a country code
-        const countryCodeMap = {
-            US: "+1",     // United States
-            CA: "+1",     // Canada
-            UK: "+44",    // United Kingdom
-            AU: "+61",    // Australia
-            FR: "+33",    // France
-            DE: "+49",    // Germany
-            IN: "+91",    // India
-            JP: "+81",    // Japan
-            BR: "+55",    // Brazil
-            MX: "+52",    // Mexico
-            CN: "+86",    // China
-            RU: "+7",     // Russia
-            ZA: "+27",    // South Africa
-            AR: "+54",    // Argentina
-            IT: "+39"     // Italy
-            // Add more as needed
-        };
+        // Use the complete mapping built in the constructor
+        const countryCodeMap = this.buildCountryCodeMap();
+        let newDefaultCountry;
         
-        // Get country code for the new default country
-        const defaultCode = countryCodeMap[this.props.defaultCountry] || "+1";
-        
-        // Find the country object
-        const newDefaultCountry = COUNTRIES.find(country => country.code === defaultCode) || 
-                                COUNTRIES.find(country => country.code === "+1");
+        // Special handling for countries with shared dialing codes
+        if (this.props.defaultCountry === "US") {
+            newDefaultCountry = COUNTRIES.find(country => 
+                country.code === "+1" && country.name === "United States");
+        }
+        else if (this.props.defaultCountry === "CA") {
+            newDefaultCountry = COUNTRIES.find(country => 
+                country.code === "+1" && country.name === "Canada");
+        }
+        // For other countries, just use the standard lookup by code
+        else {
+            const defaultCode = countryCodeMap[this.props.defaultCountry] || "+1";
+            console.log("Updating default country to", this.props.defaultCountry, "with code", defaultCode);
+            
+            // Find the country object
+            newDefaultCountry = COUNTRIES.find(country => country.code === defaultCode) || 
+                            COUNTRIES.find(country => country.code === "+1" && country.name === "United States");
+        }
         
         // Update state with the new default country
         if (newDefaultCountry) {
+            console.log("Found matching country:", newDefaultCountry.name);
             this.setState({
                 selectedCountry: newDefaultCountry,
                 countryCode: newDefaultCountry.code
@@ -148,6 +178,8 @@ export default class PhoneApp extends Component {
                 // Update the combined value if necessary
                 this.updateCombinedValue();
             });
+        } else {
+            console.error("Could not find country with specified code");
         }
     }
     
@@ -188,41 +220,16 @@ export default class PhoneApp extends Component {
     handleSearchChange(event) {
         const query = event.target.value.toLowerCase().trim();
         
-        // Get all country elements
-        const countryElements = document.querySelectorAll('.country-option');
-        let matchFound = false;
-        
-        // Loop through each country element and show/hide based on match
-        countryElements.forEach(element => {
-            const countryName = element.querySelector('.country-name').textContent.toLowerCase();
-            const countryCode = element.querySelector('.country-code').textContent.replace('+', '');
-            
-            if (countryName.includes(query) || countryCode.includes(query) || query === '') {
-                element.style.display = 'flex';
-                matchFound = true;
-            } else {
-                element.style.display = 'none';
-            }
+        // Update the search query in state
+        this.setState({
+            searchQuery: event.target.value,
+            // Filter countries based on the query
+            filteredCountries: !query ? COUNTRIES : COUNTRIES.filter(country => {
+                const countryName = country.name.toLowerCase();
+                const countryCode = country.code.replace('+', '');
+                return countryName.includes(query) || countryCode.includes(query);
+            })
         });
-        
-        // Show "no results" message if needed
-        const noResultsElement = document.querySelector('.no-results');
-        if (noResultsElement) {
-            noResultsElement.style.display = matchFound ? 'none' : 'block';
-        }
-        
-        // Update the search query in state (for the input field)
-        this.setState({ searchQuery: event.target.value });
-        
-        // Console logging for debugging
-        console.log("Search query:", query);
-    }
-    componentDidUpdate(prevProps, prevState) {
-        // If dropdown was just opened, apply any existing search filter
-        if (!prevState.dropdownOpen && this.state.dropdownOpen && this.state.searchQuery) {
-            // Force the search filter to run again
-            this.handleSearchChange({ target: { value: this.state.searchQuery } });
-        }
     }
     
     handlePhoneNumberFocus() {
@@ -319,15 +326,14 @@ export default class PhoneApp extends Component {
                                     autoFocus
                                 />
                             </div>
-                                                         <div className="country-list">
+                            <div className="country-list">
                                 {filteredCountries.length > 0 ? (
                                     filteredCountries.map(country => (
                                         <div 
-                                            key={country.code} 
+                                            key={country.code + "-" + country.name} 
                                             className="country-option"
                                             onClick={() => this.selectCountry(country)}
                                         >
-                                            {/* Get the flag URL specific to this country */}
                                             <img 
                                                 src={this.getFlagUrl(country)} 
                                                 alt={country.name}
