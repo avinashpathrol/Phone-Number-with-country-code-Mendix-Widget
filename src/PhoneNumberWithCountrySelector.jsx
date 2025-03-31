@@ -1,4 +1,3 @@
-
 import { Component, createElement } from "react";
 import "./ui/PhoneNumberWithCountrySelector.css";
 import { COUNTRIES, getCountryByRegionCode } from "./countryData";
@@ -7,22 +6,50 @@ export default class PhoneApp extends Component {
     constructor(props) {
         super(props);
         
-        // Use default value from props or use +1
-        const defaultCode = props.sampleText || "+1";
-        // Find default country based on code
-        const defaultCountry = COUNTRIES.find(country => country.code === defaultCode) || COUNTRIES[0];
+        // Complete mapping for all country codes from the XML enum values
+        const countryCodeMap = this.buildCountryCodeMap();
+        
+        // Get default country code from props or use +1 (US) as fallback
+        let defaultCode = "+1"; // Default fallback
+        
+        // Default to United States
+        let defaultCountry = COUNTRIES.find(country => 
+            country.code === "+1" && country.name === "United States") || 
+            COUNTRIES.find(country => country.code === "+1");
+        
+        // If defaultCountry is set, use its value to get the country code
+        if (props.defaultCountry && props.defaultCountry !== "AUTO") {
+            // Special handling for countries with shared dialing codes
+            if (props.defaultCountry === "US") {
+                defaultCountry = COUNTRIES.find(country => 
+                    country.code === "+1" && country.name === "United States");
+            }
+            else if (props.defaultCountry === "CA") {
+                defaultCountry = COUNTRIES.find(country => 
+                    country.code === "+1" && country.name === "Canada");
+            }
+            // For other countries, just use the standard lookup by code
+            else {
+                const code = countryCodeMap[props.defaultCountry] || "+1";
+                defaultCountry = COUNTRIES.find(country => country.code === code) || defaultCountry;
+            }
+            
+            defaultCode = defaultCountry.code;
+            console.log("Default country set to:", props.defaultCountry, 
+                "with code:", defaultCode, 
+                "and name:", defaultCountry.name);
+        }
         
         // Parse initial combined phone number if available
         let initialCountryCode = defaultCode;
         let initialPhoneNumber = "";
         
+        // If there's a combined phone number already stored, parse it
         if (props.combinedPhoneAttribute && 
             props.combinedPhoneAttribute.status === "available" && 
             props.combinedPhoneAttribute.value) {
             
-            // Extract country code and phone number from combined value
             const combinedValue = props.combinedPhoneAttribute.value;
-            // Look for a pattern like +XX followed by digits
             const match = combinedValue.match(/(\+\d+)(\d+)/);
             
             if (match) {
@@ -47,13 +74,12 @@ export default class PhoneApp extends Component {
             phoneNumber: initialPhoneNumber,
             hasError: false,
             errorMessage: "",
-            isTouched: false, // Track if user has interacted with the input
-            isBlurred: false, // Track if input has been blurred
+            isTouched: false,
+            isBlurred: false,
             dropdownOpen: false,
             selectedCountry: defaultCountry,
             searchQuery: "",
-            filteredCountries: COUNTRIES, // Keep filtered countries in state
-            forceUpdate: Date.now() // Force re-render when needed
+            filteredCountries: COUNTRIES
         };
         
         this.handlePhoneNumberChange = this.handlePhoneNumberChange.bind(this);
@@ -65,19 +91,99 @@ export default class PhoneApp extends Component {
         this.handlePhoneNumberFocus = this.handlePhoneNumberFocus.bind(this);
         this.handlePhoneNumberBlur = this.handlePhoneNumberBlur.bind(this);
         
-        this.dropdownRef = createElement("div");
+        // Initialize dropdownRef as null
+        this.dropdownRef = null;
+    }
+    
+    // Build a complete mapping of country codes from 2-letter codes to dialing codes
+    buildCountryCodeMap() {
+        // This function builds a complete mapping for all countries in your list
+        const map = {};
+        
+        // Extract country codes from your COUNTRIES array
+        COUNTRIES.forEach(country => {
+            // Find the 2-letter country code from the flagPath
+            // Example: https://flagcdn.com/us.svg -> US
+            const flagPath = country.flagPath;
+            if (flagPath) {
+                const matches = flagPath.match(/\/([a-z]{2})\.svg$/);
+                if (matches && matches[1]) {
+                    const twoLetterCode = matches[1].toUpperCase();
+                    map[twoLetterCode] = country.code;
+                }
+            }
+        });
+        
+        // Manual additions for special cases
+        map['UK'] = '+44'; // United Kingdom
+        map['GB'] = '+44'; // Great Britain
+        
+        console.log("Built country code map with", Object.keys(map).length, "entries");
+        return map;
     }
     
     componentDidMount() {
-        // Try to detect user's country (basic implementation)
-        this.detectUserCountry();
+        // Only try to auto-detect if specifically configured to do so
+        if (this.props.defaultCountry === "AUTO") {
+            this.detectUserCountry();
+        }
         
-        // Add click event listener to close dropdown when clicking outside
         document.addEventListener("mousedown", this.handleClickOutside);
     }
     
+    componentDidUpdate(prevProps) {
+        // Check if defaultCountry prop has changed
+        if (prevProps.defaultCountry !== this.props.defaultCountry) {
+            console.log("Default country changed from", prevProps.defaultCountry, "to", this.props.defaultCountry);
+            
+            if (this.props.defaultCountry === "AUTO") {
+                this.detectUserCountry();
+            } else {
+                this.updateDefaultCountry();
+            }
+        }
+    }
+    
+    updateDefaultCountry() {
+        // Use the complete mapping built in the constructor
+        const countryCodeMap = this.buildCountryCodeMap();
+        let newDefaultCountry;
+        
+        // Special handling for countries with shared dialing codes
+        if (this.props.defaultCountry === "US") {
+            newDefaultCountry = COUNTRIES.find(country => 
+                country.code === "+1" && country.name === "United States");
+        }
+        else if (this.props.defaultCountry === "CA") {
+            newDefaultCountry = COUNTRIES.find(country => 
+                country.code === "+1" && country.name === "Canada");
+        }
+        // For other countries, just use the standard lookup by code
+        else {
+            const defaultCode = countryCodeMap[this.props.defaultCountry] || "+1";
+            console.log("Updating default country to", this.props.defaultCountry, "with code", defaultCode);
+            
+            // Find the country object
+            newDefaultCountry = COUNTRIES.find(country => country.code === defaultCode) || 
+                            COUNTRIES.find(country => country.code === "+1" && country.name === "United States");
+        }
+        
+        // Update state with the new default country
+        if (newDefaultCountry) {
+            console.log("Found matching country:", newDefaultCountry.name);
+            this.setState({
+                selectedCountry: newDefaultCountry,
+                countryCode: newDefaultCountry.code
+            }, () => {
+                // Update the combined value if necessary
+                this.updateCombinedValue();
+            });
+        } else {
+            console.error("Could not find country with specified code");
+        }
+    }
+    
     componentWillUnmount() {
-        // Remove event listener
         document.removeEventListener("mousedown", this.handleClickOutside);
     }
     
@@ -89,10 +195,8 @@ export default class PhoneApp extends Component {
     
     detectUserCountry() {
         try {
-            // Get browser language (e.g., "en-US")
             const language = navigator.language || navigator.userLanguage;
             
-            // Extract country code from language (e.g., "US" from "en-US")
             if (language && language.includes('-')) {
                 const countryCode = language.split('-')[1].toUpperCase();
                 const matchedCountry = getCountryByRegionCode(countryCode);
@@ -109,48 +213,23 @@ export default class PhoneApp extends Component {
     toggleDropdown() {
         this.setState(prevState => ({
             dropdownOpen: !prevState.dropdownOpen,
-            searchQuery: "" // Clear search query when toggling
+            searchQuery: ""
         }));
     }
     
     handleSearchChange(event) {
         const query = event.target.value.toLowerCase().trim();
         
-        // Get all country elements
-        const countryElements = document.querySelectorAll('.country-option');
-        let matchFound = false;
-        
-        // Loop through each country element and show/hide based on match
-        countryElements.forEach(element => {
-            const countryName = element.querySelector('.country-name').textContent.toLowerCase();
-            const countryCode = element.querySelector('.country-code').textContent.replace('+', '');
-            
-            if (countryName.includes(query) || countryCode.includes(query) || query === '') {
-                element.style.display = 'flex';
-                matchFound = true;
-            } else {
-                element.style.display = 'none';
-            }
+        // Update the search query in state
+        this.setState({
+            searchQuery: event.target.value,
+            // Filter countries based on the query
+            filteredCountries: !query ? COUNTRIES : COUNTRIES.filter(country => {
+                const countryName = country.name.toLowerCase();
+                const countryCode = country.code.replace('+', '');
+                return countryName.includes(query) || countryCode.includes(query);
+            })
         });
-        
-        // Show "no results" message if needed
-        const noResultsElement = document.querySelector('.no-results');
-        if (noResultsElement) {
-            noResultsElement.style.display = matchFound ? 'none' : 'block';
-        }
-        
-        // Update the search query in state (for the input field)
-        this.setState({ searchQuery: event.target.value });
-        
-        // Console logging for debugging
-        console.log("Search query:", query);
-    }
-    componentDidUpdate(prevProps, prevState) {
-        // If dropdown was just opened, apply any existing search filter
-        if (!prevState.dropdownOpen && this.state.dropdownOpen && this.state.searchQuery) {
-            // Force the search filter to run again
-            this.handleSearchChange({ target: { value: this.state.searchQuery } });
-        }
     }
     
     handlePhoneNumberFocus() {
@@ -170,7 +249,7 @@ export default class PhoneApp extends Component {
         const selectedCountry = {
             code: country.code,
             name: country.name,
-            flagPath: country.flagPath  // Keep the flagPath
+            flagPath: country.flagPath
         };
         
         this.setState({
@@ -185,7 +264,6 @@ export default class PhoneApp extends Component {
     }
     
     getFlagUrl(country) {
-        // Use the country-specific flagPath, don't reuse the selectedCountry's flagPath
         return country.flagPath;
     }
     
@@ -204,7 +282,8 @@ export default class PhoneApp extends Component {
     }
     
     render() {
-        const { selectedCountry, dropdownOpen, hasError, errorMessage, phoneNumber, searchQuery, isTouched, isBlurred } = this.state;
+        const { selectedCountry, dropdownOpen, hasError, errorMessage, phoneNumber, 
+                searchQuery, isTouched, isBlurred, filteredCountries } = this.state;
         
         // Extract digits for validation
         const phoneDigits = phoneNumber.replace(/\D/g, '');
@@ -213,23 +292,6 @@ export default class PhoneApp extends Component {
         // AND either there are some digits but not enough, OR there's a validation error
         const showValidationError = isTouched && isBlurred && 
             ((phoneDigits.length > 0 && phoneDigits.length < 10) || hasError);
-        
-        // Filter countries based on search query - we're now computing this on each render
-        // instead of just when the search query changes
-        let filteredCountries;
-        if (!searchQuery) {
-            filteredCountries = COUNTRIES; // Show all when no search
-        } else {
-            const query = searchQuery.toLowerCase().trim();
-            filteredCountries = COUNTRIES.filter(country => {
-                const countryName = country.name.toLowerCase();
-                const countryCode = country.code.replace('+', '');
-                return countryName.includes(query) || countryCode.includes(query);
-            });
-            
-            // Log the filter results
-            console.log(`Found ${filteredCountries.length} matches for "${query}"`);
-        }
         
         return (
             <div className="phone-input-container">
@@ -268,11 +330,10 @@ export default class PhoneApp extends Component {
                                 {filteredCountries.length > 0 ? (
                                     filteredCountries.map(country => (
                                         <div 
-                                            key={country.code} 
+                                            key={country.code + "-" + country.name} 
                                             className="country-option"
                                             onClick={() => this.selectCountry(country)}
                                         >
-                                            {/* Get the flag URL specific to this country */}
                                             <img 
                                                 src={this.getFlagUrl(country)} 
                                                 alt={country.name}
@@ -366,6 +427,7 @@ export default class PhoneApp extends Component {
         
         this.setState({ hasError, errorMessage });
         
+        // Execute onChangeAction if valid and available
         if (!hasError && this.props.onChangeAction && this.props.onChangeAction.canExecute) {
             this.props.onChangeAction.execute();
         }
@@ -375,7 +437,9 @@ export default class PhoneApp extends Component {
     
     // Update the combined value in Mendix
     updateCombinedValue(rawPhoneNumber) {
-        if (this.props.combinedPhoneAttribute && this.props.combinedPhoneAttribute.status === "available") {
+        if (this.props.combinedPhoneAttribute && 
+            this.props.combinedPhoneAttribute.status === "available") {
+            
             // Extract raw digits from formatted number if not provided
             const phoneDigits = rawPhoneNumber !== undefined ? 
                 rawPhoneNumber : 
@@ -398,12 +462,14 @@ export default class PhoneApp extends Component {
     // For backward compatibility
     updateSeparateAttributes(rawPhoneNumber) {
         // Update country code attribute if it exists
-        if (this.props.countryCodeAttribute && this.props.countryCodeAttribute.status === "available") {
+        if (this.props.countryCodeAttribute && 
+            this.props.countryCodeAttribute.status === "available") {
             this.props.countryCodeAttribute.setValue(this.state.countryCode);
         }
         
         // Update phone number attribute if it exists
-        if (this.props.phoneNumberAttribute && this.props.phoneNumberAttribute.status === "available") {
+        if (this.props.phoneNumberAttribute && 
+            this.props.phoneNumberAttribute.status === "available") {
             const digitsToStore = rawPhoneNumber !== undefined ? 
                 rawPhoneNumber : 
                 this.state.phoneNumber.replace(/\D/g, '');
