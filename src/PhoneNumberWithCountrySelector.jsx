@@ -137,7 +137,6 @@ export default class PhoneApp extends Component {
         // Extract country codes from your COUNTRIES array
         COUNTRIES.forEach(country => {
             // Find the 2-letter country code from the flagPath
-            // Example: https://flagcdn.com/us.svg -> US
             const flagPath = country.flagPath;
             if (flagPath) {
                 const matches = flagPath.match(/\/([a-z]{2})\.svg$/);
@@ -399,82 +398,82 @@ export default class PhoneApp extends Component {
         return country.flagPath;
     }
     
-// Apply custom format to phone numbers EXACTLY as specified in the pattern
-applyCustomFormat(digits, pattern) {
-    if (!pattern || !digits) return digits;
-    
-    console.log("Applying custom format:", { digits, pattern });
-    
-    // For patterns with X placeholders (standard case)
-    if (pattern.includes('X')) {
-        // Handle X-based patterns (original logic)
-        const xCount = (pattern.match(/X/g) || []).length;
+    // Apply custom format to phone numbers EXACTLY as specified in the pattern
+    applyCustomFormat(digits, pattern) {
+        if (!pattern || !digits) return digits;
         
-        if (xCount < digits.length) {
-            console.log("Pattern doesn't have enough X placeholders");
-            return digits;
-        }
+        console.log("Applying custom format:", { digits, pattern });
         
-        let result = pattern;
-        let digitIndex = 0;
-        
-        for (let i = 0; i < pattern.length && digitIndex < digits.length; i++) {
-            if (pattern[i] === 'X') {
-                result = result.substring(0, i) + digits[digitIndex++] + result.substring(i + 1);
+        // For patterns with X placeholders (standard case)
+        if (pattern.includes('X')) {
+            // Handle X-based patterns (original logic)
+            const xCount = (pattern.match(/X/g) || []).length;
+            
+            if (xCount < digits.length) {
+                console.log("Pattern doesn't have enough X placeholders");
+                return digits;
             }
-        }
-        
-        // Remove any remaining X characters
-        result = result.replace(/X/g, '');
-        return result;
-    } else {
-        // For patterns without X, treat each numeric character as a position marker
-        // and preserve all non-numeric characters exactly as they are
-        
-        // Count actual digits in the pattern
-        const patternDigits = pattern.replace(/[^0-9]/g, '');
-        const digitCount = patternDigits.length;
-        
-        console.log("Pattern has", digitCount, "digit positions");
-        
-        // If we don't have enough pattern digits, return the original digits
-        if (digitCount === 0) return digits;
-        
-        // Create a new pattern by replacing the digits in the pattern with X
-        let newPattern = pattern;
-        let patternDigitIndex = 0;
-        
-        for (let i = 0; i < newPattern.length; i++) {
-            if (/[0-9]/.test(newPattern[i])) {
-                newPattern = newPattern.substring(0, i) + 'X' + newPattern.substring(i + 1);
-                patternDigitIndex++;
+            
+            let result = pattern;
+            let digitIndex = 0;
+            
+            for (let i = 0; i < pattern.length && digitIndex < digits.length; i++) {
+                if (pattern[i] === 'X') {
+                    result = result.substring(0, i) + digits[digitIndex++] + result.substring(i + 1);
+                }
             }
-        }
-        
-        console.log("Converted pattern with X:", newPattern);
-        
-        // Now apply the X pattern logic
-        let result = newPattern;
-        let digitIndex = 0;
-        
-        for (let i = 0; i < result.length && digitIndex < digits.length; i++) {
-            if (result[i] === 'X') {
-                result = result.substring(0, i) + digits[digitIndex++] + result.substring(i + 1);
+            
+            // Remove any remaining X characters
+            result = result.replace(/X/g, '');
+            return result;
+        } else {
+            // For patterns without X, treat each numeric character as a position marker
+            // and preserve all non-numeric characters exactly as they are
+            
+            // Count actual digits in the pattern
+            const patternDigits = pattern.replace(/[^0-9]/g, '');
+            const digitCount = patternDigits.length;
+            
+            console.log("Pattern has", digitCount, "digit positions");
+            
+            // If we don't have enough pattern digits, return the original digits
+            if (digitCount === 0) return digits;
+            
+            // Create a new pattern by replacing the digits in the pattern with X
+            let newPattern = pattern;
+            let patternDigitIndex = 0;
+            
+            for (let i = 0; i < newPattern.length; i++) {
+                if (/[0-9]/.test(newPattern[i])) {
+                    newPattern = newPattern.substring(0, i) + 'X' + newPattern.substring(i + 1);
+                    patternDigitIndex++;
+                }
             }
+            
+            console.log("Converted pattern with X:", newPattern);
+            
+            // Now apply the X pattern logic
+            let result = newPattern;
+            let digitIndex = 0;
+            
+            for (let i = 0; i < result.length && digitIndex < digits.length; i++) {
+                if (result[i] === 'X') {
+                    result = result.substring(0, i) + digits[digitIndex++] + result.substring(i + 1);
+                }
+            }
+            
+            // Remove any remaining X characters
+            result = result.replace(/X/g, '');
+            
+            // If we still have digits left, append them at the end
+            if (digitIndex < digits.length) {
+                result += digits.substring(digitIndex);
+            }
+            
+            console.log("Final formatted result:", result);
+            return result;
         }
-        
-        // Remove any remaining X characters
-        result = result.replace(/X/g, '');
-        
-        // If we still have digits left, append them at the end
-        if (digitIndex < digits.length) {
-            result += digits.substring(digitIndex);
-        }
-        
-        console.log("Final formatted result:", result);
-        return result;
     }
-}
     
     // Format phone number based on selected format or custom pattern
     formatPhoneNumber(digits, stateOverride = null) {
@@ -560,13 +559,11 @@ applyCustomFormat(digits, pattern) {
             showFormatToggle
         } = this.state;
         
-        // Extract digits for validation
+        // Extract digits for any future internal checks
         const phoneDigits = phoneNumber.replace(/\D/g, '');
         
-        // Only show validation error if the field has been touched AND blurred
-        // AND either there are some digits but not enough, OR there's a validation error
-        const showValidationError = isTouched && isBlurred && 
-            ((phoneDigits.length > 0 && phoneDigits.length < 10) || hasError);
+        // CHANGED: Remove the check for < 10 digits from the error logic
+        const showValidationError = isTouched && isBlurred && hasError;
         
         return (
             <div className="phone-input-container">
@@ -670,12 +667,10 @@ applyCustomFormat(digits, pattern) {
                     </div>
                 )}
                 
-                {/* Error Message */}
+                {/* Error Message (removed the <10 digit message) */}
                 {showValidationError && (
                     <div id="phone-error-message" className="error-message" role="alert">
-                        {phoneDigits.length < 10 ? 
-                            "Please enter a 10-digit phone number" : 
-                            errorMessage}
+                        {errorMessage}
                     </div>
                 )}
             </div>
@@ -717,8 +712,8 @@ applyCustomFormat(digits, pattern) {
         // Extract just the digits for processing
         const digitsOnly = cleanedValue.replace(/\D/g, '');
         
-        // Ensure we don't exceed 10 digits
-        if (digitsOnly.length <= 10) {
+        // CHANGED: Allow up to 12 digits instead of 10
+        if (digitsOnly.length <= 12) {
             // Format for display
             const formattedNumber = this.formatPhoneNumber(digitsOnly);
             
@@ -728,7 +723,7 @@ applyCustomFormat(digits, pattern) {
             }, () => {
                 // Update the combined value in Mendix
                 this.updateCombinedValue(digitsOnly);
-                // Still validate internally but don't show error
+                // Still validate internally but don't show error for < 10
                 this.validateInput();
             });
         }
@@ -748,12 +743,11 @@ applyCustomFormat(digits, pattern) {
         if (!hasError) {
             const phoneDigits = this.state.phoneNumber.replace(/\D/g, '');
             
-            if (phoneDigits.length > 0 && phoneDigits.length < 10) {
+            // CHANGED: Removed the check for fewer than 10 digits
+            // Now we only check if it exceeds 12
+            if (phoneDigits.length > 12) {
                 hasError = true;
-                errorMessage = "Please enter a 10-digit phone number";
-            } else if (phoneDigits.length > 10) {
-                hasError = true;
-                errorMessage = "Phone number cannot exceed 10 digits";
+                errorMessage = "Phone number cannot exceed 12 digits";
             }
         }
         
