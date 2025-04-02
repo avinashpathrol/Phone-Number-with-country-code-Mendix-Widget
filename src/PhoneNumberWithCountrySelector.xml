@@ -9,22 +9,8 @@
     <properties>
         <propertyGroup caption="General">
             <property key="combinedPhoneAttribute" type="attribute" required="true">
-                <caption>Combined Phone Number</caption>
-                <description>The attribute that stores the combined country code and phone number value (e.g., +11234567890)</description>
-                <attributeTypes>
-                    <attributeType name="String"/>
-                </attributeTypes>
-            </property>
-            <property key="countryCodeAttribute" type="attribute" required="false">
-                <caption>Country Code</caption>
-                <description>The attribute that stores the country code value (e.g., +1)</description>
-                <attributeTypes>
-                    <attributeType name="String"/>
-                </attributeTypes>
-            </property>
-             <property key="phoneNumberAttribute" type="attribute" required="false">
                 <caption>Phone Number</caption>
-                <description>The attribute that stores the phone number value (e.g., (123)-456-7894)</description>
+                <description>The attribute that stores the combined country code and phone number value (e.g., +11234567890)</description>
                 <attributeTypes>
                     <attributeType name="String"/>
                 </attributeTypes>
@@ -269,6 +255,24 @@
                     <enumerationValue key="AUTO">Auto-detect from browser</enumerationValue>
                 </enumerationValues>
             </property>
+            <property key="phoneFormat" type="enumeration" defaultValue="US_FORMAT">
+    <caption>Phone Number Format</caption>
+    <description>Select the display format for the phone number</description>
+    <enumerationValues>
+        <enumerationValue key="US_FORMAT">US Format with parentheses (XXX)-XXX-XXXX</enumerationValue>
+        <enumerationValue key="SPACE_FORMAT">International Format Space separated XXX XXX XXXX</enumerationValue>
+    </enumerationValues>
+</property>
+<property key="useCustomFormat" type="boolean" defaultValue="false">
+                <caption>Enable Custom Format</caption>
+                <description>Turn on to use a custom format instead of the predefined options</description>
+            </property>
+            <property key="customFormatPattern" type="string" required="false" defaultValue="XXX-XXX-XXXX">
+                <caption>Custom Format Pattern</caption>
+                <description>Specify a custom format pattern using X for digits. Example: XXX-XXX-XXXX or (XXX) XXX XXXX
+If your phone number has less than 10 digits or more than 10 digits, please use the custom format option to properly format your number.</description>
+            </property>
+
         </propertyGroup>
     </properties>
 </widget>
